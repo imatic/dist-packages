@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+set -eu
+
+function get_repository {
+    local distribution=$(lsb_release --id | cut -d $'\t' -f2)
+    local repository=
+    if [[ "${distribution}" == "Ubuntu" ]]; then
+        local distribution_release=$(lsb_release --release | cut -d $'\t' -f2)
+        repository="xUbuntu_${distribution_release}"
+    else
+        repository="Debian_9.0"
+    fi
+
+    echo "${repository}"
+}
+
+apt-get update
+apt-get install --yes curl lsb-release
+
+repository=$(get_repository)
+echo "deb http://download.opensuse.org/repositories/home:/nenadalm/${repository}/ ./" >> /etc/apt/sources.list
+curl -L "https://download.opensuse.org/repositories/home:/nenadalm/${repository}/Release.key" | apt-key add -
+
+apt-get update
+apt-get install --yes \
+    devscripts \
+    build-essential \
+    lintian \
+    debhelper \
+    python3-all \
+    python3-setuptools \
+    python-sentry-sdk \
+    python3-systemd \
+    python3-requests \
+    python3-netifaces \
+    python3-click

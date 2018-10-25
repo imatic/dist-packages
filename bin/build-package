@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+set -eu
+
+path="${1:-}"
+build_dir='/tmp/package-builder'
+
+if [[ -z "${path}" ]]; then
+    printf "[Error]: path to the package needs to be provided.\n" >&2
+    exit 1
+fi
+
+canonical_path=$(readlink -f "${path}")
+package_name=$(basename "${canonical_path}")
+package_version=$(grep 'Standards-Version' "${canonical_path}/debian/control" | sed 's/Standards-Version: *//')
+
+if [[ -z "${package_version}" ]]; then
+    printf "[Error]: Cannot retrieve package version.\n" >&2
+    exit 1
+fi
+
+rm -rf "${build_dir}"
+mkdir -p "${build_dir}/deb"
+cd "${build_dir}/deb"
+
+case "${package_name}" in
+    'python-sentry-sdk')
+        curl -L -o "${package_name}_${package_version}.orig.tar.gz" "https://github.com/getsentry/sentry-python/archive/${package_version}.tar.gz"
+        tar -xvzf "./${package_name}_${package_version}.orig.tar.gz"
+        cd "sentry-python-${package_version}"
+        ;;
+    'journald-notify')
+        curl -L -o "${package_name}_${package_version}.orig.tar.gz" "https://github.com/imatic/journald-notify/archive/${package_version}.tar.gz"
+        tar -xvzf "./${package_name}_${package_version}.orig.tar.gz"
+        cd "journald-notify-${package_version}"
+        ;;
+esac
+
+cp -r "${canonical_path}/debian" .
+debuild -us -uc
+cd ../
+
+mkdir -p ./build
+cp ${package_name}_${package_version}*.dsc "build/${package_name}.dsc"
+cp "${package_name}_${package_version}.orig.tar.gz" "build/${package_name}_${package_version}.orig.tar.gz"
+cp "${canonical_path}/debian/changelog" build/debian.changelog
+cp "${canonical_path}/debian/control" build/debian.control
+cp "${canonical_path}/debian/rules" build/debian.rules
+cp "${canonical_path}/debian/compat" build/debian.compat
